@@ -10,6 +10,8 @@ class MPC {
  public:
   MPC();
 
+  const double Lf = 2.67;
+
   virtual ~MPC();
 
   // Solve the model given an initial state and polynomial coefficients.
