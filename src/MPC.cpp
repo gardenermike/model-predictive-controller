@@ -5,7 +5,6 @@
 
 using CppAD::AD;
 
-// TODO: Set the timestep length and duration
 size_t N = 6;
 double dt = 0.1;
 
@@ -21,13 +20,13 @@ double dt = 0.1;
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
 
-// NOTE: feel free to play around with this
-// or do something completely different
-const double ref_v = 40;
+// The target velocity.
+// The default was 40, but 60 is more fun :)
+const double ref_v = 60;
 
 // The solver takes all the state variables and actuator
-// variables in a singular vector. Thus, we should to establish
-// when one variable starts and another ends to make our lifes easier.
+// variables in a singular vector. These variables define
+// when one variable starts and another ends to make life easier.
 const size_t x_start = 0;
 const size_t y_start = x_start + N;
 const size_t psi_start = y_start + N;
@@ -45,18 +44,9 @@ class FG_eval {
 
   typedef CPPAD_TESTVECTOR(AD<double>) ADvector;
   void operator()(ADvector& fg, const ADvector& vars) {
-    // TODO: implement MPC
-    // `fg` a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
-    // NOTE: You'll probably go back and forth between this function and
-    // the Solver function below.
+    // `fg` is a vector of the cost constraints, `vars` is a vector of variable values (state & actuators)
     // The cost is stored is the first element of `fg`.
-    // Any additions to the cost should be added to `fg[0]`.
     fg[0] = 0;
-
-    // Reference State Cost
-    // TODO: Define the cost related the reference state and
-    // any anything you think may be beneficial.
-    //fg[0] += ; // the sum of the squared cross track errors, + the difference in delta squared, + the difference in a squared
 
     // The part of the cost based on the reference state.
     for (int t = 0; t < N; t++) {
@@ -77,11 +67,6 @@ class FG_eval {
       fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2); // encourage smooth acceleration
     }
 
-    //
-    // Setup Constraints
-    //
-    // NOTE: In this section you'll setup the model constraints.
-
     // Initial constraints
     //
     // We add 1 to each of the starting indices due to cost being located at
@@ -94,7 +79,7 @@ class FG_eval {
     fg[1 + cte_start] = vars[cte_start];
     fg[1 + epsi_start] = vars[epsi_start];
 
-    // The rest of the constraints
+    // The rest of the constraints past the initial
     for (int t = 1; t < N; t++) {
       AD<double> x1 = vars[x_start + t];
       AD<double> y1 = vars[y_start + t];
@@ -115,14 +100,6 @@ class FG_eval {
       AD<double> f0 = coeffs[0] + coeffs[1] * x0;
       AD<double> psides0 = CppAD::atan(coeffs[1]);
 
-      // Here's `x` to get you started.
-      // The idea here is to constraint this value to be 0.
-      //
-      // NOTE: The use of `AD<double>` and use of `CppAD`!
-      // This is also CppAD can compute derivatives and pass
-      // these to the solver.
-
-      // TODO: Setup the rest of the model constraints
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
       fg[1 + psi_start + t] = psi1 - (psi0 - (v0 / Lf) * delta0 * dt);
@@ -144,11 +121,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
 
-  // TODO: Set the number of model variables (includes both states and inputs).
-  // For example: If the state is a 4 element vector, the actuators is a 2
-  // element vector and there are 10 timesteps. The number of variables is:
-  //
-  // 4 * 10 + 2 * 9
   double x = state[0];
   double y = state[1];
   double psi = state[2];
@@ -159,7 +131,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   int state_size = 6;
 
   size_t n_vars = N * state_size + (N - 1) * 2;
-  // TODO: Set the number of constraints
   size_t n_constraints = N * state_size;
 
   // Initial value of the independent variables.
@@ -178,7 +149,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
-  // TODO: Set lower and upper limits for variables.
 
   // Set all non-actuators upper and lowerlimits
   // to the max negative and positive values.
@@ -225,9 +195,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);
 
-  //
-  // NOTE: You don't have to worry about these options
-  //
   // options for IPOPT solver
   std::string options;
   // Uncomment this if you'd like more print information
@@ -258,11 +225,6 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   auto cost = solution.obj_value;
   std::cout << "Cost " << cost << std::endl;
 
-  // TODO: Return the first actuator values. The variables can be accessed with
-  // `solution.x[i]`.
-  //
-  // {...} is shorthand for creating a vector, so auto x1 = {1.0,2.0}
-  // creates a 2 element double vector.
   vector<double> return_values;
 
   //for control, we only use steering and acceleration
@@ -276,9 +238,4 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   }
 
   return return_values;
-
-  //return {solution.x[x_start + 1],   solution.x[y_start + 1],
-  //        solution.x[psi_start + 1], solution.x[v_start + 1],
-  //        solution.x[cte_start + 1], solution.x[epsi_start + 1],
-  //        solution.x[delta_start],   solution.x[a_start]};
 }
