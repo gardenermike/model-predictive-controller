@@ -21,8 +21,9 @@ double dt = 0.1;
 const double Lf = 2.67;
 
 // The target velocity.
-// The default was 40, but 60 is more fun :)
-const double ref_v = 60;
+// The default was 40, but faster is more fun :)
+// We will approach but never quite reach this speed
+const double ref_v = 80;
 
 // The solver takes all the state variables and actuator
 // variables in a singular vector. These variables define
@@ -50,7 +51,7 @@ class FG_eval {
 
     // The part of the cost based on the reference state.
     for (int t = 0; t < N; t++) {
-      fg[0] += CppAD::pow(vars[cte_start + t], 2) * (1 + (t / 10)); // cross-track error (weighted slightly into the distance for better fit)
+      fg[0] += CppAD::pow(vars[cte_start + t], 2);
       fg[0] += CppAD::pow(vars[epsi_start + t], 2) * 10; // orientation (psi) error
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2); // distance from reference velocity
     }
@@ -97,8 +98,10 @@ class FG_eval {
       AD<double> delta0 = vars[delta_start + t - 1];
       AD<double> a0 = vars[a_start + t - 1];
 
-      AD<double> f0 = coeffs[0] + coeffs[1] * x0;
-      AD<double> psides0 = CppAD::atan(coeffs[1]);
+      // evaluate the position in the waypoints polynomial at x0
+      AD<double> f0 = coeffs[0] + coeffs[1] * x0 + coeffs[2] * pow(x0, 2) + coeffs[3] * pow(x0, 3);
+      // evaluate the derivative of the waypoints polynomial at x0
+      AD<double> psides0 = CppAD::atan(coeffs(1) + 2 * coeffs(2) * x0 + 3 * coeffs(3) * pow(x0, 2));
 
       fg[1 + x_start + t] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt);
       fg[1 + y_start + t] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt);
