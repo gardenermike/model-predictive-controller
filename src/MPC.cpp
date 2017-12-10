@@ -50,20 +50,20 @@ class FG_eval {
     fg[0] = 0;
 
     // The part of the cost based on the reference state.
-    for (int t = 0; t < N; t++) {
+    for (size_t t = 0; t < N; t++) {
       fg[0] += CppAD::pow(vars[cte_start + t], 2);
       fg[0] += CppAD::pow(vars[epsi_start + t], 2) * 10; // orientation (psi) error
       fg[0] += CppAD::pow(vars[v_start + t] - ref_v, 2); // distance from reference velocity
     }
 
     // Minimize the use of actuators.
-    for (int t = 0; t < N - 1; t++) {
+    for (size_t t = 0; t < N - 1; t++) {
       fg[0] += CppAD::pow(vars[delta_start + t], 2) * 200; // penalize sharp turns
       fg[0] += CppAD::pow(vars[a_start + t], 2) * 10; // penalize sudden acceleration
     }
 
     // Minimize the value gap between sequential actuations.
-    for (int t = 0; t < N - 2; t++) {
+    for (size_t t = 0; t < N - 2; t++) {
       fg[0] += CppAD::pow(vars[delta_start + t + 1] - vars[delta_start + t], 2) * 1e2; // encourage smooth turns
       fg[0] += CppAD::pow(vars[a_start + t + 1] - vars[a_start + t], 2); // encourage smooth acceleration
     }
@@ -81,7 +81,7 @@ class FG_eval {
     fg[1 + epsi_start] = vars[epsi_start];
 
     // The rest of the constraints past the initial
-    for (int t = 1; t < N; t++) {
+    for (size_t t = 1; t < N; t++) {
       AD<double> x1 = vars[x_start + t];
       AD<double> y1 = vars[y_start + t];
       AD<double> psi1 = vars[psi_start + t];

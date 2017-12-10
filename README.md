@@ -23,7 +23,13 @@ There are number of dependencies. Please see the [Udacity github repository](htt
 
 ## Discussion
 
+### Waypoints
+The simulator, like the real world, does not have some magical set of lines drawn everywhere for vehicles to follow. Instead, the simulator has a series of points that approximately follow the center of the track. In order to follow these points, a third-order polynomial is [fit to the waypoints within sensor range](https://github.com/gardenermike/model-predictive-controller/blob/master/src/main.cpp#L123). The Eigen matrix library used this project supports [fitting an arbitrary-degree polynomial to a set of points](https://eigen.tuxfamily.org/dox/group__TutorialLinearAlgebra.html). The [polyfit method in main.cpp](https://github.com/gardenermike/model-predictive-controller/blob/master/src/main.cpp#L47) provides the implementation.
+A third-order polynomial provides a strong fit to a series of points, far better than linear and better than a second-order polynomial. Polynomials of higher degree could closer fit the points, but are likely to over fit, leading to a less smooth curve. I ran into fit problems when I forecast a trajectory beyond the furthest waypoint. The polynomial at times sharply diverged from the lane when outside the bounds of the waypoints, so using the polynomial only where it was a good fit proved to be important.
+I [translate the waypoint data from the simulator to vehicle coordinates](https://github.com/gardenermike/model-predictive-controller/blob/master/src/main.cpp#L106) in order to keep the math simple for finding a matching trajectory. I missed this step at first, which I was able to quickly catch when I plotted the waypoints, and they had no correlation to the vehicle.
+
 ### Model
+#### State
 The state that is modeled by the controller in this project consists of six elements:
 * The X position of the vehicle. To simplify the math, I [transform the map coordinates to vehicle coordinates](https://github.com/gardenermike/model-predictive-controller/blob/master/src/main.cpp#L106), which puts the vehicle at the origin of the coordinate system. In this translated coordinate system, X is always 0.
 * The Y position of the vehicle. Like the X position, the Y coordinate is always 0 from the perspective of the vehicle.
@@ -32,12 +38,16 @@ The state that is modeled by the controller in this project consists of six elem
 * The cross-track error ("cte" in the code). This is a simple linear distance away from the center of the track.
 * The error in orientation bearing. In the code this is represented as the error in psi, "epsi".
 
+#### Controller output / actuators
 The output of the controller has two elements:
 * The steering angle, thought of as the delta psi. In the code this is generally called "delta".
 * The acceleration, or throttle/brake, called "a" in the code.
 
-The trajectory into the future is modeled with [six](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L8) points, each one-tenth of a second apart. This is a relatively small number, but computationally efficient. I tried as few as four and as many as ten. With too few points, the trajectory did not take the future sufficiently into account, and corners were handled poorly. With too long of a time horizon, the trajectory would extend beyond the furthest waypoints, where the polynomial fitting the waypoints might diverge sharply from the real world, leading to bizarre behavior. The tenth of a second I chose between points was chosen with similar criteria to the point count: I wanted points close enough for a smooth fit, and not so far as to extend beyond the waypoints at any velocity.
+#### Time steps
+The trajectory into the future is modeled with [six](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L8) points, each one-tenth of a second apart. This is a relatively small number, but computationally efficient. I tried as few steps as four and as many as ten. With too few points, the trajectory did not take the future sufficiently into account, and corners were handled poorly. With too long of a time horizon, the trajectory would extend beyond the furthest waypoints, where the polynomial fitting the waypoints might diverge sharply from the real world, leading to bizarre behavior.
+The [tenth of a second I chose between points](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L9) was chosen with similar criteria to the point count: I wanted points close enough for a smooth fit, and not so far as to extend beyond the waypoints at any velocity. I had to adjust this value together with the number of time steps, in order to extend to most of the distance of the furthest waypoint at peak velocity, but not beyond.
 
+#### Cost
 The [cost values](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L51) used to determine the trajectory were hand-tuned to ensure a smooth drive. The cost consists of several components:
 * The cross-track error
 * The error in orientation (weighted much more heavily than the cross-track error)
@@ -51,6 +61,7 @@ Each of the cost elements was squared to ensure no negative values and to penali
 
 The solver was instructed to drive all costs as close as possible to zero.
 
+#### Model equations
 To forecast the six points into the future, I used [equations to model the change between each time step](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L106).
 The X and Y values simply follow the sides of a triangle extrapolated outward by the velocity times the change in time (a tenth of a second as outlined above).
 The forecast orientation uses the turning radius of the vehicle and the steering angle, together with the velocity, to predict a change in vehicle angle.
