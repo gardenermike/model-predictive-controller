@@ -75,3 +75,6 @@ My emphasis on smooth turns also leads to the vehicle cutting corners. At higher
 
 ### Tweaks
 The easiest things to change are the reference velocity and number of time steps in the forecast. If you'd like to play with the code, that is good place to start. Adjusting the weights given to the various cost components also is a fine-tuning step that could be taken further.
+
+### Video
+A recording of the loop is in this repo in [gif](./images/loop.gif) or [mov](./images/loop.mov) format.
