@@ -36,12 +36,12 @@ The output of the controller has two elements:
 * The steering angle, thought of as the delta psi. In the code this is generally called "delta".
 * The acceleration, or throttle/brake, called "a" in the code.
 
-The trajectory into the future is modeled with [six](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L8) points, each one-tenth of a second apart. This is a relatively small. I tried as few as four and as many as ten. With too few points, the trajectory did not take the future sufficiently into account, and corners might be handled poorly. With too long of a time horizon, the trajectory would extend beyond the furthest waypoints, where the polynomial fitting the waypoints might diverged sharply from the real world. The tenth of a second I chose between points was chosen with similar criteria: I wanted points close enough for a smooth fit, and not so far as to extend beyond the waypoints at any velocity.
+The trajectory into the future is modeled with [six](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L8) points, each one-tenth of a second apart. This is a relatively small number, but computationally efficient. I tried as few as four and as many as ten. With too few points, the trajectory did not take the future sufficiently into account, and corners were handled poorly. With too long of a time horizon, the trajectory would extend beyond the furthest waypoints, where the polynomial fitting the waypoints might diverge sharply from the real world, leading to bizarre behavior. The tenth of a second I chose between points was chosen with similar criteria to the point count: I wanted points close enough for a smooth fit, and not so far as to extend beyond the waypoints at any velocity.
 
 The [cost values](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L51) used to determine the trajectory were hand-tuned to ensure a smooth drive. The cost consists of several components:
 * The cross-track error
 * The error in orientation (weighted much more heavily than the cross-track error)
-* The distance from the reference velocity
+* The velocity difference from the reference velocity
 * A penalty for high steering angle (heavily weighted)
 * A penalty for high acceleration
 * A penalty for sudden changes in steering. I weighted this part of the cost most heavily, to ensure smooth steering.
@@ -51,9 +51,9 @@ Each of the cost elements was squared to ensure no negative values and to penali
 
 The solver was instructed to drive all costs as close as possible to zero.
 
-To forecast the six points into the future, I used [equations model the change between each time step](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L106).
+To forecast the six points into the future, I used [equations to model the change between each time step](https://github.com/gardenermike/model-predictive-controller/blob/master/src/MPC.cpp#L106).
 The X and Y values simply follow the sides of a triangle extrapolated outward by the velocity times the change in time (a tenth of a second as outlined above).
-The forecast orientation uses the turning radius of the vehicle and the steering angle, together with the velocity to predict a change in vehicle angle.
+The forecast orientation uses the turning radius of the vehicle and the steering angle, together with the velocity, to predict a change in vehicle angle.
 The change in velocity simply adds the expected change given the current acceleration.
 The cross-track error uses the linear distance between the Y values of the predicted point and the waypoint polynomial, subtracting the expected change in Y.
 The expected error in angle/orientation is the most complicated calculation. It assumes motion along the tangent line of the current waypoint polynomial.
@@ -77,4 +77,4 @@ My emphasis on smooth turns also leads to the vehicle cutting corners. At higher
 The easiest things to change are the reference velocity and number of time steps in the forecast. If you'd like to play with the code, that is good place to start. Adjusting the weights given to the various cost components also is a fine-tuning step that could be taken further.
 
 ### Video
-A recording of the loop is in this repo in [gif](./images/loop.gif) or [mov](./images/loop.mov) format.
+A recording of the loop is in this repo in [gif](./images/loop.gif) format for easy viewing.
